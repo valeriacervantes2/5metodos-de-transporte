@@ -36,6 +36,8 @@ class Paso:
         self.u = None
         self.v = None
         self.optimo = False
+        self.ho = None            # historial de oferta restante por fila: [[35, 0], ...]
+        self.hd = None            # historial de demanda restante por columna
 
 
 class Problema:
@@ -102,6 +104,8 @@ class Constructor:
         self.filas = list(range(p.m))
         self.cols = list(range(p.n))
         self.asig = {}
+        self.ho = [[x] for x in p.oferta]
+        self.hd = [[x] for x in p.demanda]
 
     def asignar(self, i, j):
         q = self.o[i]
@@ -112,6 +116,10 @@ class Constructor:
         self.asig[(i, j)] = q
         self.o[i] = self.o[i] - q
         self.d[j] = self.d[j] - q
+        if self.o[i] != self.ho[i][-1]:
+            self.ho[i].append(self.o[i])
+        if self.d[j] != self.hd[j][-1]:
+            self.hd[j].append(self.d[j])
         fo = self.o[i] <= EPS
         fd = self.d[j] <= EPS
         if fo and fd:
@@ -139,6 +147,8 @@ class Constructor:
 
     def paso(self, txt):
         ps = Paso(dict(self.asig), txt)
+        ps.ho = [list(h) for h in self.ho]
+        ps.hd = [list(h) for h in self.hd]
         for i in range(self.p.m):
             if i not in self.filas:
                 ps.tach_f.append(i)
@@ -152,8 +162,11 @@ class Constructor:
                          + " celdas básicas.")
 
     def cierre(self):
-        return Paso(dict(self.asig), "SBFI completa con " + str(len(self.asig)) + " celdas básicas (m+n−1 = "
-                    + str(self.p.m + self.p.n - 1) + "). Las celdas con ε son ceros básicos.")
+        ps = Paso(dict(self.asig), "SBFI completa con " + str(len(self.asig)) + " celdas básicas (m+n−1 = "
+                  + str(self.p.m + self.p.n - 1) + "). Las celdas con ε son ceros básicos.")
+        ps.ho = [list(h) for h in self.ho]
+        ps.hd = [list(h) for h in self.hd]
+        return ps
 
 
 def encontrar_ciclo(base, ent):

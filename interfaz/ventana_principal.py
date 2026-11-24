@@ -3,7 +3,7 @@ import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from modelos.problema_transporte import Problema, EJEMPLOS, fmt
+from modelos.problema_transporte import Problema, EJEMPLOS, EPS, fmt
 from metodos import esquina_noroeste, costo_minimo, miguel, banquillo, dimo
 
 INICIALES = {"Esquina Noroeste": esquina_noroeste, "Costo Mínimo": costo_minimo, "Vogel (VAM)": miguel}
@@ -123,6 +123,21 @@ class Visor(tk.Frame):
         cic = dict(ps.ciclo) if ps.ciclo else {}
         cx, cy = (lambda j: LW + j * W), (lambda i: top + i * H)
         grey = "#9ca3af"
+        ho = ps.ho if ps.ho else [[x] for x in p.oferta]
+        hd = ps.hd if ps.hd else [[x] for x in p.demanda]
+        OW = max(W, 24 + 40 * max(len(h) for h in ho))      # ancho de la columna Oferta (crece con el historial)
+        DH = max(H, 20 * max(len(h) for h in hd) + 14)      # alto de la fila Demanda
+        cyp = cy(m) + DH                                    # fila de penalizaciones (Vogel)
+
+        def tachado(x, y, valor, anchor):
+            """Valor viejo en gris y tachado; devuelve el borde derecho."""
+            i = txt(x, y, text=fmt(valor), font=(F, 11), fill=grey, anchor=anchor)
+            x1, y1, x2, y2 = cv.bbox(i)
+            cv.create_line(x1 - 1, (y1 + y2) / 2, x2 + 1, (y1 + y2) / 2, fill="#6b7280", width=1.5)
+            return x2
+
+        def ultimo(h):
+            return "—" if len(h) > 1 and h[-1] <= EPS else fmt(h[-1])
         for j in range(n):
             t = f"D{j + 1}" + (" (Ficticio)" if p.fict_col and j == n - 1 else "")
             if ps.v:
@@ -135,21 +150,28 @@ class Visor(tk.Frame):
                 t += f"\nu = {fmt(ps.u[i])}"
             txt(LW / 2, cy(i) + H / 2, text=t, font=BOLD, justify="center",
                            fill=grey if i in ps.tach_f else TXT)
-            txt(cx(n) + W / 2, cy(i) + H / 2, text=fmt(p.oferta[i]), font=(F, 13, "bold"))
-        txt(cx(n) + W / 2, oy + HH / 2, text="Oferta", font=BOLD)
-        txt(LW / 2, cy(m) + H / 2, text="Demanda", font=BOLD)
+            xo = cx(n) + 10                                  # oferta restante: valores viejos tachados y el actual
+            for v in ho[i][:-1]:
+                xo = tachado(xo, cy(i) + H / 2, v, "w") + 9
+            txt(xo, cy(i) + H / 2, text=ultimo(ho[i]), font=(F, 13, "bold"), anchor="w")
+        txt(cx(n) + OW / 2, oy + HH / 2, text="Oferta", font=BOLD)
+        txt(LW / 2, cy(m) + DH / 2, text="Demanda", font=BOLD)
         for j in range(n):
-            txt(cx(j) + W / 2, cy(m) + H / 2, text=fmt(p.demanda[j]), font=(F, 13, "bold"))
-        fin = cy(m) + H
+            yd = cy(m) + 14                                  # demanda restante apilada hacia abajo
+            for v in hd[j][:-1]:
+                tachado(cx(j) + W / 2, yd, v, "center")
+                yd += 20
+            txt(cx(j) + W / 2, yd, text=ultimo(hd[j]), font=(F, 13, "bold"))
+        fin = cy(m) + DH
         if ps.penal_f is not None:
-            fin = cy(m + 1) + H
-            txt(cx(n + 1) + W / 2, oy + HH / 2, text="Penal. fila", font=BOLD)
-            txt(LW / 2, cy(m + 1) + H / 2, text="Penal. col.", font=BOLD)
+            fin = cyp + H
+            txt(cx(n) + OW + W / 2, oy + HH / 2, text="Penal. fila", font=BOLD)
+            txt(LW / 2, cyp + H / 2, text="Penal. col.", font=BOLD)
             for i, v in ps.penal_f.items():
-                txt(cx(n + 1) + W / 2, cy(i) + H / 2, text=fmt(v), font=(F, 14, "bold"),
+                txt(cx(n) + OW + W / 2, cy(i) + H / 2, text=fmt(v), font=(F, 14, "bold"),
                                fill="#dc2626" if ps.marcada == ('f', i) else TXT)
             for j, v in ps.penal_c.items():
-                txt(cx(j) + W / 2, cy(m + 1) + H / 2, text=fmt(v), font=(F, 14, "bold"),
+                txt(cx(j) + W / 2, cyp + H / 2, text=fmt(v), font=(F, 14, "bold"),
                                fill="#dc2626" if ps.marcada == ('c', j) else TXT)
         cells = [(i, j) for i in range(m) for j in range(n)]
         for i, j in cells:                                   # 1) fondos
