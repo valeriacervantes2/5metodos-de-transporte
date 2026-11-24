@@ -87,6 +87,8 @@ class Problema:
                 if texto != "":
                     texto = texto + " + "
                 texto = texto + fmt(self.costos[i][j]) + "·" + fmt(asig[(i, j)])
+        if texto == "":
+            return "Z = 0"
         return "Z = " + texto + " = " + fmt(self.costo(asig))
 
 

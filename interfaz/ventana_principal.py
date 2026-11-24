@@ -1,4 +1,5 @@
 """Interfaz Tkinter: editor dinámico, 5 métodos paso a paso y comparativa final."""
+import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -7,7 +8,7 @@ from metodos import esquina_noroeste, costo_minimo, miguel, banquillo, dimo
 
 INICIALES = {"Esquina Noroeste": esquina_noroeste, "Costo Mínimo": costo_minimo, "Vogel (VAM)": miguel}
 BG, TXT, ACC = "#f7f8fa", "#111827", "#2563eb"
-F = "Segoe UI"
+F = "Helvetica Neue" if sys.platform == "darwin" else ("Segoe UI" if sys.platform.startswith("win") else "DejaVu Sans")
 BOLD, BIG = (F, 10, "bold"), (F, 18, "bold")
 
 
@@ -22,7 +23,7 @@ class Visor(tk.Frame):
         top = tk.Frame(self, bg=BG)
         top.pack(fill="x", pady=4)
         if opt:
-            tk.Label(top, text="Solución inicial:", bg=BG, font=BOLD).pack(side="left")
+            tk.Label(top, text="Solución inicial:", bg=BG, fg=TXT, font=BOLD).pack(side="left")
             self.sel = ttk.Combobox(top, values=list(INICIALES), state="readonly", width=18)
             self.sel.set("Vogel (VAM)")
             self.sel.pack(side="left", padx=4)
@@ -31,7 +32,7 @@ class Visor(tk.Frame):
             ttk.Button(top, text=t, command=lambda c=c: self.ir(c)).pack(side="left", padx=3)
         self.btn_modo = ttk.Button(top, text="Paso a paso", command=self.alternar)
         self.btn_modo.pack(side="left", padx=3)
-        self.lbl = tk.Label(top, bg=BG, font=BOLD)
+        self.lbl = tk.Label(top, bg=BG, fg=TXT, font=BOLD)
         self.lbl.pack(side="left", padx=10)
         self.txt = tk.Label(self, bg="#eef2ff", fg=TXT, justify="left", anchor="w", wraplength=1050,
                             padx=8, pady=6, font=(F, 10))
@@ -55,6 +56,13 @@ class Visor(tk.Frame):
     def cargar(self, p):
         self.p = p
         self.refrescar()
+
+    def vaciar(self):
+        self.p, self.pasos, self.i = None, [], 0
+        self.cv.delete("all")
+        self.cv.configure(scrollregion=(0, 0, 0, 0))
+        for w in (self.lbl, self.txt, self.zl):
+            w.config(text="")
 
     def refrescar(self):
         if not self.p:
@@ -99,11 +107,16 @@ class Visor(tk.Frame):
     def dibujar_paso(self, ps, k, oy, titulo):
         """Dibuja un paso con su esquina superior en oy; devuelve la y donde termina."""
         p, cv = self.p, self.cv
+
+        def txt(*a, **k):
+            k.setdefault("fill", TXT)   # en macOS modo oscuro el color por defecto es blanco
+            return cv.create_text(*a, **k)
+
         m, n = p.m, p.n
         W, H, LW, HH = 104, 74, 125, 54
         if titulo:
             cv.create_line(0, oy, 2000, oy, fill="#d1d5db")
-            cv.create_text(10, oy + 8, anchor="nw", width=1050, font=BOLD, fill=ACC,
+            txt(10, oy + 8, anchor="nw", width=1050, font=BOLD, fill=ACC,
                            text=f"Paso {k + 1}: {ps.texto}\n{p.formula(ps.asig)}")
             oy += 88
         top = oy + HH
@@ -114,29 +127,29 @@ class Visor(tk.Frame):
             t = f"D{j + 1}" + (" (Ficticio)" if p.fict_col and j == n - 1 else "")
             if ps.v:
                 t += f"\nv = {fmt(ps.v[j])}"
-            cv.create_text(cx(j) + W / 2, oy + HH / 2, text=t, font=BOLD, justify="center",
+            txt(cx(j) + W / 2, oy + HH / 2, text=t, font=BOLD, justify="center",
                            fill=grey if j in ps.tach_c else TXT)
         for i in range(m):
             t = f"O{i + 1}" + (" (Ficticio)" if p.fict_fila and i == m - 1 else "")
             if ps.u:
                 t += f"\nu = {fmt(ps.u[i])}"
-            cv.create_text(LW / 2, cy(i) + H / 2, text=t, font=BOLD, justify="center",
+            txt(LW / 2, cy(i) + H / 2, text=t, font=BOLD, justify="center",
                            fill=grey if i in ps.tach_f else TXT)
-            cv.create_text(cx(n) + W / 2, cy(i) + H / 2, text=fmt(p.oferta[i]), font=(F, 13, "bold"))
-        cv.create_text(cx(n) + W / 2, oy + HH / 2, text="Oferta", font=BOLD)
-        cv.create_text(LW / 2, cy(m) + H / 2, text="Demanda", font=BOLD)
+            txt(cx(n) + W / 2, cy(i) + H / 2, text=fmt(p.oferta[i]), font=(F, 13, "bold"))
+        txt(cx(n) + W / 2, oy + HH / 2, text="Oferta", font=BOLD)
+        txt(LW / 2, cy(m) + H / 2, text="Demanda", font=BOLD)
         for j in range(n):
-            cv.create_text(cx(j) + W / 2, cy(m) + H / 2, text=fmt(p.demanda[j]), font=(F, 13, "bold"))
+            txt(cx(j) + W / 2, cy(m) + H / 2, text=fmt(p.demanda[j]), font=(F, 13, "bold"))
         fin = cy(m) + H
         if ps.penal_f is not None:
             fin = cy(m + 1) + H
-            cv.create_text(cx(n + 1) + W / 2, oy + HH / 2, text="Penal. fila", font=BOLD)
-            cv.create_text(LW / 2, cy(m + 1) + H / 2, text="Penal. col.", font=BOLD)
+            txt(cx(n + 1) + W / 2, oy + HH / 2, text="Penal. fila", font=BOLD)
+            txt(LW / 2, cy(m + 1) + H / 2, text="Penal. col.", font=BOLD)
             for i, v in ps.penal_f.items():
-                cv.create_text(cx(n + 1) + W / 2, cy(i) + H / 2, text=fmt(v), font=(F, 14, "bold"),
+                txt(cx(n + 1) + W / 2, cy(i) + H / 2, text=fmt(v), font=(F, 14, "bold"),
                                fill="#dc2626" if ps.marcada == ('f', i) else TXT)
             for j, v in ps.penal_c.items():
-                cv.create_text(cx(j) + W / 2, cy(m + 1) + H / 2, text=fmt(v), font=(F, 14, "bold"),
+                txt(cx(j) + W / 2, cy(m + 1) + H / 2, text=fmt(v), font=(F, 14, "bold"),
                                fill="#dc2626" if ps.marcada == ('c', j) else TXT)
         cells = [(i, j) for i in range(m) for j in range(n)]
         for i, j in cells:                                   # 1) fondos
@@ -163,18 +176,18 @@ class Visor(tk.Frame):
         for i, j in cells:                                   # 3) textos
             x, y = cx(j), cy(i)
             cv.create_rectangle(x + W - 32, y + 3, x + W - 3, y + 22, fill="#f3f4f6", outline="#9ca3af")
-            cv.create_text(x + W - 17, y + 12, text=fmt(p.costos[i][j]), font=(F, 9, "bold"))
+            txt(x + W - 17, y + 12, text=fmt(p.costos[i][j]), font=(F, 9, "bold"))
             if (i, j) in ps.asig:
                 q = ps.asig[(i, j)]
-                cv.create_text(x + W / 2, y + H / 2 + 4, text="ε" if q <= 0 else fmt(q), font=BIG,
+                txt(x + W / 2, y + H / 2 + 4, text="ε" if q <= 0 else fmt(q), font=BIG,
                                fill="#b45309" if q <= 0 else TXT)
             if ps.delta and (i, j) in ps.delta:
                 d = ps.delta[(i, j)]
-                cv.create_text(x + 8, y + H - 12, anchor="w", text=f"Δ={fmt(d)}", font=(F, 10, "bold"),
+                txt(x + 8, y + H - 12, anchor="w", text=f"Δ={fmt(d)}", font=(F, 10, "bold"),
                                fill="#dc2626" if d < 0 else "#16a34a")
             if (i, j) in cic:
                 s = cic[(i, j)]
-                cv.create_text(x + 14, y + 14, text="+" if s > 0 else "−", font=(F, 20, "bold"),
+                txt(x + 14, y + 14, text="+" if s > 0 else "−", font=(F, 20, "bold"),
                                fill="#16a34a" if s > 0 else "#dc2626")
         for i in ps.tach_f:
             cv.create_line(LW, cy(i) + H / 2, cx(n), cy(i) + H / 2, fill="#4b5563", width=2)
@@ -191,17 +204,21 @@ class App(tk.Tk):
         self.configure(bg=BG)
         self.iniciales, self.vc, self.vo, self.vd, self.ents = {}, [], [], [], []
         barra = tk.Frame(self, bg=BG)
-        barra.pack(fill="x", padx=10, pady=6)
+        barra.pack(fill="x", padx=10, pady=(6, 0))
         for t, c in (("＋ Origen", lambda: self.cambiar(1, 0)), ("－ Origen", lambda: self.cambiar(-1, 0)),
                      ("＋ Destino", lambda: self.cambiar(0, 1)), ("－ Destino", lambda: self.cambiar(0, -1)),
                      ("Ejemplo balanceado", lambda: self.ejemplo("balanceado")),
                      ("Ejemplo desbalanceado", lambda: self.ejemplo("desbalanceado")),
                      ("Limpiar tabla", self.limpiar)):
             ttk.Button(barra, text=t, command=c).pack(side="left", padx=3)
-        tk.Button(barra, text="▶ Resolver", command=self.resolver, bg=ACC, fg="white", font=BOLD,
-                  relief="flat", padx=14, pady=4).pack(side="right", padx=3)
-        self.badge = tk.Label(barra, font=BOLD, padx=10, pady=3)
-        self.badge.pack(side="right", padx=10)
+        # tk.Button ignora los colores en macOS: se usa un Label clicable
+        btn = tk.Label(barra, text="▶ Resolver", bg=ACC, fg="white", font=BOLD, padx=16, pady=6, cursor="hand2")
+        btn.bind("<Button-1>", lambda e: self.resolver())
+        btn.pack(side="right", padx=3)
+        fila2 = tk.Frame(self, bg=BG)
+        fila2.pack(fill="x", padx=13, pady=(6, 0))
+        self.badge = tk.Label(fila2, font=BOLD, padx=10, pady=3)
+        self.badge.pack(side="left")
         self.editor = tk.Frame(self, bg=BG)
         self.editor.pack(fill="x", padx=14, pady=4)
         self.nb = ttk.Notebook(self)
@@ -242,23 +259,24 @@ class App(tk.Tk):
             v = tk.StringVar(value=str(val))
             v.trace_add("write", lambda *a: self.actualizar())
             e = tk.Entry(self.editor, textvariable=v, width=7, justify="center", font=(F, 11),
-                         relief="solid", bd=1)
+                         relief="solid", bd=1, fg=TXT, bg="white", insertbackground=TXT,
+                         highlightthickness=0, disabledforeground=TXT)
             e.grid(row=r, column=col, padx=2, pady=2)
             self.ents.append((v, e))
             lista_v.append(v)
             return v
 
         for j in range(n):
-            tk.Label(self.editor, text=f"D{j + 1}", bg=BG, font=BOLD).grid(row=0, column=j + 1)
-        tk.Label(self.editor, text="Oferta", bg=BG, font=BOLD).grid(row=0, column=n + 1)
+            tk.Label(self.editor, text=f"D{j + 1}", bg=BG, fg=TXT, font=BOLD).grid(row=0, column=j + 1)
+        tk.Label(self.editor, text="Oferta", bg=BG, fg=TXT, font=BOLD).grid(row=0, column=n + 1)
         for i in range(m):
-            tk.Label(self.editor, text=f"O{i + 1}", bg=BG, font=BOLD).grid(row=i + 1, column=0)
+            tk.Label(self.editor, text=f"O{i + 1}", bg=BG, fg=TXT, font=BOLD).grid(row=i + 1, column=0)
             fila = []
             for j in range(n):
                 entrada(i + 1, j + 1, c[i][j], fila)
             self.vc.append(fila)
             entrada(i + 1, n + 1, o[i], self.vo)
-        tk.Label(self.editor, text="Demanda", bg=BG, font=BOLD).grid(row=m + 1, column=0)
+        tk.Label(self.editor, text="Demanda", bg=BG, fg=TXT, font=BOLD).grid(row=m + 1, column=0)
         for j in range(n):
             entrada(m + 1, j + 1, d[j], self.vd)
         self.actualizar()
@@ -275,7 +293,7 @@ class App(tk.Tk):
         for v, e in self.ents:
             bien = self.valido(v.get())
             ok &= bien
-            e.config(bg="white" if bien else "#fecaca")
+            e.config(bg="white" if bien else "#fecaca", fg=TXT)
         if not ok:
             self.badge.config(text="Valores vacíos o negativos", bg="#fecaca", fg="#991b1b")
             return
@@ -288,7 +306,14 @@ class App(tk.Tk):
             self.badge.config(text=f"Desbalanceado ({fmt(so)} vs {fmt(sd)}): se agregará {falta} ficticio",
                               bg="#fef08a", fg="#854d0e")
 
+    def vaciar_resultados(self):
+        for v in self.visores:
+            v.vaciar()
+        self.tree.delete(*self.tree.get_children())
+        self.resumen.config(text="")
+
     def cambiar(self, df, dc):
+        self.vaciar_resultados()
         c, o, d = self.crudo()
         if df > 0:
             c.append(["0"] * len(d)); o.append("0")
@@ -304,8 +329,10 @@ class App(tk.Tk):
 
     def ejemplo(self, k):
         self.construir(*EJEMPLOS[k])
+        self.resolver()
 
     def limpiar(self):
+        self.vaciar_resultados()
         c, o, d = self.crudo()
         self.construir([["0"] * len(d) for _ in o], ["0"] * len(o), ["0"] * len(d))
 
