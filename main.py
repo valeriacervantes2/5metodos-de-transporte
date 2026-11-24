@@ -1,13 +1,4 @@
-
-import tkinter as tk
-from interfaz.ventana_principal import VentanaPrincipal
-
-
-def main():
-    root = tk.Tk()
-    VentanaPrincipal(root)
-    root.mainloop()
-
+from interfaz.ventana_principal import iniciar
 
 if __name__ == "__main__":
-    main()
+    iniciar()
